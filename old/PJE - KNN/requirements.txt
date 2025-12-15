@@ -1,0 +1,28 @@
+# === Core dependencies ===
+pandas>=2.0
+numpy>=1.26
+charset-normalizer>=3.3
+langdetect>=1.0.9
+regex>=2023.10.0
+tqdm>=4.65.0
+
+# === Optional / nice to have (if used by some rules or export modules) ===
+emoji>=2.11.1
+beautifulsoup4>=4.12.0
+lxml>=5.2.0
+
+
+# === Core requirements ===
+python>=3.10
+charset-normalizer>=3.3
+langdetect>=1.0.9
+
+# === Optional (recommended) ===
+regex>=2023.10.0
+tqdm>=4.65.0
+emoji>=2.11.1
+beautifulsoup4>=4.12.0
+lxml>=5.2.0
+
+# === Dev / Testing ===
+pytest>=7.4.0

@@ -1,0 +1,21 @@
+{
+    "0": ["love", "like", "enjoy", "adore"],
+    "1": ["hate", "dislike", "loathe"],
+    "2": ["good", "great", "awesome", "fantastic", "excellent"],
+    "3": ["bad", "terrible", "awful", "poor", "worse"],
+    "4": ["movie", "film", "show"],
+    "5": ["phone", "mobile", "cellphone", "device"],
+    "6": ["music", "song", "track", "tune"],
+    "7": ["football", "soccer", "foot"],
+    "8": ["warner", "studio", "production"],
+    "9": ["nike", "adidas", "reebok"],
+    "10": ["museum", "exhibition", "gallery"],
+    "11": ["obama", "president", "biden", "trump"],
+    "12": ["twitter", "tweet", "timeline"],
+    "13": ["night", "evening"],
+    "14": ["morning", "day"],
+    "15": ["time", "moment", "hour", "minute"],
+    "16": ["happy", "glad", "joyful", "content"],
+    "17": ["sad", "unhappy", "depressed", "down"],
+    "18": ["cool", "nice", "dope", "lit"]
+}

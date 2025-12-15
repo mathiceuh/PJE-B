@@ -1,0 +1,7 @@
+TODO:
+
+1. Create Evaluation / Statistics Module
+   - Responsible for evaluation and comparison of models.
+   - Computes metrics between models (accuracy, precision, recall, F1, etc.).
+   - Takes an instance of AlgorithmManager as input.
+   - Standardizes output for GUI consumption.

@@ -1,0 +1,43 @@
+README — Classification de Tweets avec Naive Bayes
+1. Description
+Ce projet implémente un classifieur Naive Bayes pour déterminer la polarité de tweets (négatif, neutre, positif).
+Il utilise un jeu de données d’entraînement annoté (test.csv) et applique le modèle sur un fichier de tweets nettoyés (final_cleaned_min.csv).
+Le résultat est exporté dans un fichier annoté :
+result/tweets_annotes.csv
+
+2. Structure du projet.
+PJE - Naive Bayes/
+├── input/             # Données d'entraînement (label, texte)
+│   └── test.csv                  # Données d'entraînement (label, texte)
+│   └── final_cleaned_min.csv     # Tweets à prédire
+├── result/
+│   └── tweets_annotes_Bayes.csv    # Résultats générés
+├── main.py                 # Code Python (voir ci-dessous)
+
+3. Fonctionnement général
+1) Chargement des données d’entraînement
+Le script lit test.csv et récupère pour chaque ligne :
+un label (0, 2, 4)
+un texte de tweet
+2) Tokenisation
+Chaque tweet est transformé en liste de mots :
+passage en minuscules
+découpe par split()
+3) Entraînement du modèle Naive Bayes
+Le modèle calcule :
+P(c) : probabilité de chaque classe
+P(mot | c) : probabilité d’un mot dans une classe (avec lissage de Laplace)
+vocab : ensemble de tous les mots rencontrés
+4) Chargement des tweets à prédire
+final_cleaned_min.csv est chargé en conservant toutes les colonnes.
+Le texte à classifier se trouve en colonne d’index 1.
+5) Classification
+Pour chaque tweet :
+calcul des scores log-probabilité par classe
+sélection de la classe avec le score maximal
+stockage du label (0, 2, 4)
+6) Export des résultats
+Le script génère un fichier CSV contenant :
+toutes les colonnes d’origine
+prediction_num (0 / 2 / 4)
+prediction_texte (negatif / neutre / positif)

@@ -1,0 +1,24 @@
+ IHM (GUI) Pipeline
+   - Dataset Upload
+     - User uploads dataset.
+     - Validate dataset (through FileValidator or via Streamlist).
+   - Column Detection
+     - Detect columns dynamically (using ColumnDetector).
+     - Confirm detected columns with user.
+     - If user disagrees:
+       - Suggest alternative heuristics for column detection (list all implemented).
+       - Allow user to manually specify label and text columns.
+   - Supervised / Unsupervised Confirmation
+     - User confirms if dataset is supervised or unsupervised.
+     - Clean dataset and display headers or sample lines.
+   - Model Selection and Parameter Configuration
+     - User selects model.
+     - User can set/change parameters (if applicable).
+     - Fit model on dataset.
+     - Allow user to change model or parameters later; requires re-fitting.
+	.
+	.
+	.
+
+-- Work in progress
+-- Check Moodle indications for full picture before refining.

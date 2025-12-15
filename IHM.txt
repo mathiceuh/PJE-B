@@ -1,0 +1,33 @@
+#IHM plan
+
+#1 Data & Cleaning
+	-  Import : Upload csv
+        -  Mapping : "Which column is Text ? Which is Label? Is supervied or not ? -- we could "attempt" dynamically else user input
+        - Cleaning : should be able ot choose cleaning rules
+        - Train/Test split (to be used by default, unless human wants seperate test dataset)
+        - Shows snippets of before vs after in the dataset
+
+
+#2 Annotation Studio (The "Human" Baseline) :
+        - Takes the "test" set otherwise  a specifc unlabeled dataset
+        - Display one tweet at atime (and a total of N tweets : N >= test set) with progress button
+        - Show actions for label "Pos/Neut/Neg" or 0/2/4 depending on the dataset + allow to manually change labels
+        - Output : Saves a mnaual_annotations.csv and save the classificaiton (only if user completes it)
+        - add a button to fill in randomly (for test purposes)
+
+#3 Keywords :
+        - Configure params, Train (fit), Type a tweet and get a predicition
+
+#4 KNN :
+        - Configure params, Train (fit), Type a tweet and get a predicition
+
+#5 Clustering :
+        - Configure params, Train (fit),  (Do equivalent of :Type a tweet and get a predicition but for unsuperivsed learning)
+
+#6 Bayes  :
+        - Configure params, Train (fit), Type a tweet and get a predicition
+
+#5 Comparison Analysis:
+        - Illustrate performance anaylisis between diffrent algorihmts inclduing human
+
+
