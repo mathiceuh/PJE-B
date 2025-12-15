@@ -12,20 +12,10 @@ CLASS_LABELS = {
 
 
 class NaiveBayesClassifier:
-    """
-    Classificateur Naive Bayes Multinomial complet pour le TP.
-    Supporte :
-    - Lissage de Laplace (smoothing)
-    - Mode Binaire (Présence) vs Fréquence
-    - N-grammes (Unigrammes, Bigrammes, ou les deux)
-    """
+
 
     def __init__(self, smoothing=1.0, use_binary=False, n_gram=1):
-        """
-        :param smoothing: Paramètre de lissage (ex: 1.0)
-        :param use_binary: Si True, compte la présence (0/1). Si False, la fréquence.
-        :param n_gram: 1=Unigrammes, 2=Bigrammes, 3=Uni+Bigrammes
-        """
+
         self.smoothing = smoothing
         self.use_binary = use_binary
         self.n_gram = n_gram
@@ -36,7 +26,6 @@ class NaiveBayesClassifier:
         self.classes = set()  # Ensemble des classes (0, 2, 4)
 
     def _get_ngrams(self, text):
-        """Découpe le texte en tokens selon la configuration n_gram choisie."""
         if not isinstance(text, str):
             return []
 
@@ -64,9 +53,7 @@ class NaiveBayesClassifier:
         return tokens
 
     def fit(self, data):
-        """
-        Entraîne le modèle sur une liste de tuples (label, tweet).
-        """
+
         self.classes = set()
         self.vocab = set()
 
@@ -109,7 +96,6 @@ class NaiveBayesClassifier:
             class_count[label] += 1
             tokens = self._get_ngrams(tweet)
 
-            # Si mode BINAIRE (Présence), on ne compte chaque mot qu'une fois par tweet
             if self.use_binary:
                 tokens = set(tokens)
 
@@ -122,25 +108,20 @@ class NaiveBayesClassifier:
         V = len(self.vocab)
         total_tweets = len(clean_data)
 
-        # P(Classe) = tweets de la classe / total tweets
         self.prior = {c: class_count[c] / total_tweets for c in self.classes}
 
-        # P(Mot | Classe) avec lissage de Laplace
         self.cond_prob = {}
         for c in self.classes:
             self.cond_prob[c] = {}
-            # Dénominateur commun pour cette classe : Total mots + (alpha * Taille Vocabulaire)
             denom = total_words[c] + (self.smoothing * V)
 
             for w in self.vocab:
-                # Numérateur : Occurrences du mot + alpha
                 count = word_count[c][w]
                 self.cond_prob[c][w] = (count + self.smoothing) / denom
 
         print(f"✅ Modèle entraîné sur {total_tweets} tweets (Vocab: {V} tokens).")
 
     def predict_one(self, text):
-        """Prédiction pour un seul tweet."""
         # Si le modèle n'est pas entraîné, on retourne Neutre par défaut
         if not self.prior:
             return 2
@@ -154,7 +135,6 @@ class NaiveBayesClassifier:
         # Si aucun mot n'est connu, le modèle ne peut pas décider -> Neutre
         if not mots_connus:
             return 2
-        # ---------------------------------------------
 
         scores = {}
         for c in self.prior:
@@ -176,9 +156,7 @@ class NaiveBayesClassifier:
         return [self.predict_one(t) for t in texts]
 
 
-# =========================================================
-#  FONCTIONS UTILITAIRES (Pour compatibilité si besoin)
-# =========================================================
+
 
 def load_training_csv_legacy(path):
     """Ancien chargeur CSV simple (gardé pour compatibilité)"""
@@ -225,7 +203,6 @@ def save_predictions_legacy(path, rows, header, predictions):
 
 
 if __name__ == "__main__":
-    # Petit test si on lance le fichier directement
     nb = NaiveBayesClassifier()
     data = [(4, "I love this app"), (0, "This is bad"), (2, "It is okay")]
     nb.fit(data)

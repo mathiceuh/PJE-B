@@ -23,10 +23,7 @@ class MetricsSummary:
 
 
 class EvaluationService:
-    """
-    Evaluation service for single algorithms and comparative analysis.
-    Supports supervised, rule-based, and unsupervised algorithm modes.
-    """
+
 
     def __init__(self, test_size: float = 0.2, random_seed: Optional[int] = None):
         self.test_size = test_size
@@ -36,10 +33,7 @@ class EvaluationService:
     # Single Algorithm Evaluation
     # -------------------------------------------------------------
     def evaluate_model_performance(self, algo_instance, test_data: List[Tuple]):
-        """
-        Evaluates a single algorithm on a labeled test dataset.
-        Returns detailed metrics and operational info.
-        """
+
         if not test_data:
             return {"error": "Empty dataset"}
 
@@ -92,9 +86,7 @@ class EvaluationService:
             operational=metrics['operational']
         )
 
-    # -------------------------------------------------------------
-    # Comparative Analysis Across Algorithms
-    # -------------------------------------------------------------
+
     def run_comparative_analysis(self, manager_instance, dataset: List[Tuple]):
         """
         Runs evaluation for all algorithms in the manager instance.
@@ -134,9 +126,7 @@ class EvaluationService:
 
         return results
 
-    # -------------------------------------------------------------
-    # Metric Calculators
-    # -------------------------------------------------------------
+
     def _compute_supervised_metrics(self, true_labels, predictions):
         labels = sorted(list(set(true_labels + predictions)))
         acc = accuracy_score(true_labels, predictions) * 100

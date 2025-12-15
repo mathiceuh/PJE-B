@@ -87,7 +87,7 @@ def render(manager):
     if not st.session_state.get('bayes_trained'):
         st.info("Veuillez entraîner le modèle pour accéder aux tests.")
     else:
-        # A. Test Manuel
+        #  Test Manuel
         col_test, col_res = st.columns([3, 1])
         with col_test:
             user_tweet = st.text_input("Tester un tweet :", placeholder="Ex: Ce cours est génial !")
@@ -115,7 +115,7 @@ def render(manager):
                     else:
                         st.write(f"Mots reconnus ({len(connus)}) : {connus}")
 
-        # B. Évaluation Globale
+        #  Évaluation Globale
         st.markdown("---")
         st.write("📊 **Performance sur le Test Set**")
 
@@ -132,7 +132,7 @@ def render(manager):
             acc = accuracy_score(test_labels, predictions)
             cm = confusion_matrix(test_labels, predictions)
 
-            # 1. Affichage Métriques
+            # Affichage Métriques
             c_metric, c_mat = st.columns([1, 2])
             with c_metric:
                 st.metric("Accuracy", f"{acc * 100:.2f}%")
@@ -145,7 +145,7 @@ def render(manager):
                                      columns=[f"Pred {c}" for c in labels_classes])
                 st.dataframe(df_cm, use_container_width=True)
 
-            # 2. Préparation du CSV pour téléchargement
+            #  Préparation du CSV pour téléchargement
             df_export = pd.DataFrame({
                 "tweet": textes_test,
                 "label_reel": test_labels,
@@ -157,7 +157,7 @@ def render(manager):
             st.session_state['bayes_result_df'] = df_export
             st.success("Évaluation terminée ! Résultats prêts au téléchargement.")
 
-        # C. Zone de Téléchargement
+        #  Zone de Téléchargement
         if 'bayes_result_df' in st.session_state:
             st.markdown("### 📥 Télécharger les résultats")
 

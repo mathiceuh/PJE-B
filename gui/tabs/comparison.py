@@ -3,8 +3,6 @@ import pandas as pd
 import streamlit as st
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import StratifiedKFold
-
-# Import des classes natives (sans passer par le Manager pour avoir des instances multiples)
 from algorithms.bayes.bayes import NaiveBayesClassifier
 from algorithms.keywords.annotator import annotate_tweet
 from algorithms.knn.distance import JaccardDistance

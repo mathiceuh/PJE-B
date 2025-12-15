@@ -3,7 +3,6 @@ from wrapper import KNNWrapper, KeywordWrapper, NaiveBayesWrapper, DummyWrapper,
 
 
 class AlgorithmManager:
-    """High-level abstraction managing multiple algorithm wrappers."""
 
     def __init__(self, algorithms):
         # algorithms: list of (name, wrapper_instance)
@@ -39,7 +38,7 @@ class AlgorithmManager:
 
 
 # ============================================================
-# 🔧 Export a prebuilt manager instance
+# Export a prebuilt manager instance
 # ============================================================
 
 manager = AlgorithmManager([
