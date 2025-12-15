@@ -1,117 +1,262 @@
 import streamlit as st
 import pandas as pd
-from sklearn.metrics import accuracy_score, confusion_matrix
+import json
+import os
+import time
+
+# --- Import Backend Logic ---
+from algorithms.knn.knn_classifier import KNNClassifier
+from algorithms.knn.distance import (
+    JaccardDistance,
+    CosineDistance,
+    LevenshteinDistance,
+    EuclideanDistance,
+    ManhattanDistance
+)
+from algorithms.knn.voting import MajorityVote, WeightedVote
+from algorithms.knn.synonym_mapper import SynonymMapper
+
+# Map friendly names to backend classes
+DISTANCE_MAP = {
+    "Jaccard (Set Overlap)": JaccardDistance,
+    "Cosine (Vector Angle)": CosineDistance,
+    "Euclidean (L2 Norm)": EuclideanDistance,
+    "Manhattan (L1 Norm)": ManhattanDistance,
+    "Levenshtein (Edit Distance)": LevenshteinDistance
+}
+
+VOTING_MAP = {
+    "Majority Vote": MajorityVote,
+    "Weighted Vote (Inverse Distance)": WeightedVote
+}
 
 
 def render(manager):
-    st.header("📍 Algorithme : K-Nearest Neighbors (KNN)")
-    st.markdown("Classification basée sur la similarité (Distance de Jaccard).")
+    st.header("🤖 K-Nearest Neighbors (KNN)")
+    st.caption("Classify tweets based on their similarity to labeled examples.")
 
-    # 1. Vérification des données
-    if 'train_df' not in st.session_state or 'test_df' not in st.session_state:
-        st.warning("⚠️ Veuillez d'abord charger et diviser les données dans l'onglet '1. Data & Cleaning'.")
-        return
+    # ==============================================================================
+    # 1. CONFIGURATION
+    # ==============================================================================
+    st.subheader("1. Configuration")
 
-    train_df = st.session_state['train_df']
-    test_df = st.session_state['test_df']
+    # --- A. Synonyms Loader (Default vs Custom) ---
+    if 'knn_synonyms' not in st.session_state:
+        # Load default from file
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(os.path.dirname(current_dir))
+            json_path = os.path.join(project_root, "algorithms", "knn", "synonyms.json")
 
-    col_text_idx = st.session_state.get('cleaned_text_col_idx', 1)
-    col_label_idx = st.session_state.get('cleaned_label_col_idx', 0)
+            with open(json_path, "r", encoding="utf-8") as f:
+                st.session_state['knn_synonyms'] = json.load(f)
+        except Exception:
+            # Fallback if file missing
+            st.session_state['knn_synonyms'] = {"0": ["love", "like"], "1": ["hate", "dislike"]}
 
-    # Préparation des données pour le wrapper [(label, text)]
-    # On le fait à la volée pour être sûr d'avoir les dernières données
-    def prepare_data(df):
-        data = []
-        labels = []
-        for i in range(len(df)):
-            txt = str(df.iloc[i, col_text_idx])
-            lbl = int(df.iloc[i, col_label_idx])
-            data.append((lbl, txt))
-            labels.append(lbl)
-        return data, labels
+    with st.expander("📚 Synonym Dictionary Configuration", expanded=False):
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            uploaded_syn = st.file_uploader("Upload Synonyms JSON", type=["json"])
+        with c2:
+            st.info("Format: Key = ID, Value = List of words. First word is canonical.")
 
-    train_data, train_labels = prepare_data(train_df)
-    test_data, test_labels_reels = prepare_data(test_df)
+        if uploaded_syn:
+            try:
+                st.session_state['knn_synonyms'] = json.load(uploaded_syn)
+                st.toast("Synonyms loaded!", icon="✅")
+            except:
+                st.error("Invalid JSON")
 
-    # 2. Configuration
-    st.subheader("1. Configuration & Entraînement")
+        # Edit Synonyms Table
+        # Convert dict to list of dicts for data_editor
+        syn_data = []
+        for gid, words in st.session_state['knn_synonyms'].items():
+            syn_data.append({"ID": gid, "Words": ", ".join(words)})
 
-    c1, c2 = st.columns(2)
-    with c1:
-        k_value = st.slider("Nombre de voisins (k)", 1, 21, 5, step=2,
-                            help="Choisissez un nombre impair de préférence.")
-    with c2:
-        dist_metric = st.selectbox("Distance", ["jaccard"], disabled=True, help="Jaccard est imposé pour ce TP.")
+        df_syn = pd.DataFrame(syn_data)
+        edited_syn = st.data_editor(
+            df_syn,
+            num_rows="dynamic",
+            width="stretch",
+            key="knn_syn_editor",
+            column_config={
+                "Words": st.column_config.TextColumn(help="Comma-separated synonyms. First one is the replacement.")
+            }
+        )
 
-    # Bouton d'entraînement
-    if st.button("🧠 Entraîner le modèle KNN", type="primary"):
-        with st.spinner(f"Entraînement sur {len(train_data)} tweets..."):
-            manager.select("KNN")
-            algo = manager.get_current()
+    st.markdown("---")
 
-            # Configuration
-            algo.set_params(k=k_value, distance="jaccard")
+    # --- B. Hyperparameters ---
+    col_k, col_dist, col_vote = st.columns(3)
 
-            # Fit
-            algo.fit(train_data)
+    with col_k:
+        k_val = st.slider("K (Number of Neighbors)", 1, 21, 3, step=2, help="Odd numbers are better to avoid ties.")
 
-            # Marquer comme entraîné
-            st.session_state['knn_trained'] = True
-            st.success(f"Modèle entraîné avec succès (k={k_value}) !")
+    with col_dist:
+        dist_name = st.selectbox("Distance Metric", list(DISTANCE_MAP.keys()), index=0)
+        use_synonyms = st.checkbox("Use Synonym Normalization", value=True)
 
-    # 3. Test & Évaluation
-    st.divider()
-    st.subheader("2. Test & Évaluation")
+    with col_vote:
+        vote_name = st.selectbox("Voting Strategy", list(VOTING_MAP.keys()), index=0)
 
-    if not st.session_state.get('knn_trained'):
-        st.info("Entraînez le modèle pour accéder aux tests.")
+    # --- C. Train Button ---
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Validation check
+    if 'train_df' not in st.session_state:
+        st.warning("⚠️ No Training Data found. Please go to 'Data Cleaning' and split your data.")
+        train_ready = False
     else:
-        # A. Test Manuel
-        col_test, col_res = st.columns([3, 1])
-        with col_test:
-            user_tweet = st.text_input("Tester un tweet :", placeholder="Ce film est vraiment génial !")
+        train_ready = True
+        train_size = len(st.session_state['train_df'])
+        st.caption(f"Ready to train on **{train_size}** rows.")
+
+    if st.button("💾 Train KNN Model", type="primary", disabled=not train_ready, use_container_width=True):
+        with st.spinner("Training (Indexing data)..."):
+            # 1. Parse Synonyms from Editor
+            final_synonyms = {}
+            for index, row in edited_syn.iterrows():
+                # clean and split
+                w_list = [w.strip() for w in str(row["Words"]).split(",") if w.strip()]
+                if w_list:
+                    final_synonyms[str(row["ID"])] = w_list
+
+            # Save temporary json for the backend class (it expects a file path or we modify it to accept dict)
+            # Since your class takes a path, let's dump a temp file or modify the class.
+            # *Better approach:* We will mock the synonym behavior or dump a temp file.
+            # Let's dump to a temp path for compatibility with your existing code.
+            temp_syn_path = "temp_synonyms.json"
+            with open(temp_syn_path, "w", encoding="utf-8") as f:
+                json.dump(final_synonyms, f)
+
+            # 2. Initialize Distance Class
+            DistClass = DISTANCE_MAP[dist_name]
+            # Instantiate with synonym logic
+            distance_instance = DistClass(use_synonyms=use_synonyms,
+                                          synonym_json=temp_syn_path if use_synonyms else None)
+
+            # 3. Initialize Voter
+            VoteClass = VOTING_MAP[vote_name]
+            voter_instance = VoteClass()
+
+            # 4. Initialize KNN
+            knn = KNNClassifier(k=k_val, distance=distance_instance, voter=voter_instance)
+
+            # 5. Fit Data
+            # Format: list of (label, tweet) tuples
+            train_df = st.session_state['train_df']
+
+            # Identify columns
+            txt_col = train_df.columns[st.session_state['cleaned_text_col_idx']]
+            lbl_col = train_df.columns[st.session_state['cleaned_label_col_idx']]
+
+            # Convert to list of tuples
+            training_data = list(zip(train_df[lbl_col], train_df[txt_col]))
+            knn.fit(training_data)
+
+            # 6. Save to Session
+            st.session_state['knn_model'] = knn
+            st.success(f"KNN Trained successfully! (K={k_val}, Dist={dist_name})")
+
+    # ==============================================================================
+    # 2. TEST ("Inference")
+    # ==============================================================================
+    st.divider()
+    st.subheader("2. Test a Tweet")
+
+    if 'knn_model' not in st.session_state:
+        st.info("Please train the model above.")
+    else:
+        user_tweet = st.text_input("Type a tweet to classify:", placeholder="I love this movie so much!")
 
         if user_tweet:
-            algo = manager.get_current()  # Récupérer l'instance entraînée
-            pred = algo.predict_one(user_tweet)
+            knn = st.session_state['knn_model']
 
-            # Mapping pour affichage sympa
-            map_res = {0: "😡 Négatif", 2: "😐 Neutre", 4: "🥰 Positif"}
-            res_str = map_res.get(pred, f"Classe {pred}")
+            # We want to see the neighbors, so we need to peek inside predict_one logic
+            # OR we modify predict_one to return neighbors.
+            # Since we can't easily modify backend files here, we will replicate the logic for visualization.
 
-            with col_res:
-                st.markdown(f"### {res_str}")
+            # 1. Run Prediction
+            start_time = time.time()
+            prediction = knn.predict_one(user_tweet)
+            elapsed = time.time() - start_time
 
-        # B. Évaluation Globale (Batch)
-        st.markdown("---")
-        st.write("📊 **Performance sur le Test Set**")
+            st.markdown(f"### Prediction: **{prediction}**")
+            st.caption(f"Inference time: {elapsed:.4f}s")
 
-        if st.button("Lancer l'évaluation complète"):
-            algo = manager.get_current()
+            # 2. Explain (Find neighbors again to show them)
+            with st.expander("🔍 See K-Nearest Neighbors (Explanation)", expanded=True):
+                # Calculate distances manually to display
+                neighbors = []
+                for label, tweet in knn.base:
+                    d = knn.distance.compute(user_tweet, tweet)
+                    neighbors.append({"Distance": d, "Label": label, "Tweet": tweet})
 
-            progress_bar = st.progress(0, text="Prédiction en cours...")
+                # Sort and take K
+                neighbors = sorted(neighbors, key=lambda x: x["Distance"])[:knn.k]
 
-            # Prédiction en batch (on extrait juste les textes)
-            test_texts = [t for _, t in test_data]
-            predictions = algo.predict_batch(test_texts)
+                # Display
+                st.table(pd.DataFrame(neighbors))
 
-            progress_bar.progress(100, text="Calcul des métriques...")
+    # ==============================================================================
+    # 3. BATCH EXECUTION
+    # ==============================================================================
+    st.divider()
+    st.subheader("3. Apply to Dataset")
 
-            # Métriques
-            acc = accuracy_score(test_labels_reels, predictions)
-            cm = confusion_matrix(test_labels_reels, predictions)
+    if 'knn_model' not in st.session_state:
+        st.warning("⚠️ Train the model first.")
+    elif 'test_df' not in st.session_state:
+        st.warning("⚠️ No Test Data.")
+    else:
+        # User Output Mapping
+        with st.expander("⚙️ Output Label Formatting"):
+            st.write("Current labels in training data are likely: 0, 2, 4. Map them here if needed.")
+            c_neg, c_neu, c_pos = st.columns(3)
+            map_0 = st.text_input("Map 0 to:", value="Negative")
+            map_2 = st.text_input("Map 2 to:", value="Neutral")
+            map_4 = st.text_input("Map 4 to:", value="Positive")
 
-            # Affichage
-            c_metric, c_mat = st.columns([1, 2])
+        if st.button("🚀 Run Batch KNN", type="primary", use_container_width=True):
+            test_df = st.session_state['test_df'].copy()
+            # Safety check: KNN on 300k rows is SLOW. Warn user or sample.
+            if len(test_df) > 2000:
+                st.warning("⚠️ KNN is slow on large datasets. Processing first 2000 rows only for demo.")
+                test_df = test_df.head(2000)
 
-            with c_metric:
-                st.metric("Accuracy", f"{acc * 100:.2f}%")
-                st.caption(f"Corrects : {int(acc * len(test_labels_reels))}/{len(test_labels_reels)}")
+            knn = st.session_state['knn_model']
+            txt_col = test_df.columns[st.session_state['cleaned_text_col_idx']]
 
-            with c_mat:
-                st.write("**Matrice de Confusion**")
-                # DataFrame pour joli affichage
-                labels_uniques = sorted(list(set(test_labels_reels + predictions)))
-                df_cm = pd.DataFrame(cm, index=[f"Vrai {l}" for l in labels_uniques],
-                                     columns=[f"Pred {l}" for l in labels_uniques])
-                st.dataframe(df_cm, use_container_width=True)
+            # Progress bar
+            bar = st.progress(0, "Classifying...")
+
+            predictions = []
+            total = len(test_df)
+
+            # Loop with progress
+            for i, tweet in enumerate(test_df[txt_col]):
+                pred = knn.predict_one(str(tweet))
+
+                # Apply Mapping
+                if pred == 0 or str(pred) == "0":
+                    pred_mapped = map_0
+                elif pred == 4 or str(pred) == "4":
+                    pred_mapped = map_4
+                else:
+                    pred_mapped = map_2
+
+                predictions.append(pred_mapped)
+
+                if i % 50 == 0:
+                    bar.progress(min(i / total, 1.0))
+
+            bar.progress(100, "Done!")
+            test_df['knn_prediction'] = predictions
+
+            st.success(f"Processed {len(test_df)} rows.")
+            st.dataframe(test_df[[txt_col, 'knn_prediction']].head(50), width="stretch")
+
+            # Download
+            csv = test_df.to_csv(index=False).encode('utf-8')
+            st.download_button("⬇️ Download KNN Results", csv, "knn_results.csv", "text/csv")
