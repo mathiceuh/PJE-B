@@ -83,7 +83,7 @@ def render(manager):
 
             # Debug : Mots reconnus
             if hasattr(algo, 'model') and algo.model:
-                tokens = algo.model._tokenize(user_tweet)
+                tokens = algo.model._get_ngrams(user_tweet)
                 connus = [w for w in tokens if w in algo.model.vocab]
                 with st.expander("🔍 Détails de la prédiction"):
                     if not connus:
