@@ -121,6 +121,7 @@ class NaiveBayesWrapper(BaseAlgorithm):
 # ============================================================
 # Clustering Wrapper
 # ============================================================
+
 class ClusteringWrapper(BaseAlgorithm):
     name = "Hierarchical Clustering"
     mode = "unsupervised"
@@ -128,24 +129,25 @@ class ClusteringWrapper(BaseAlgorithm):
 
     def __init__(self, **kwargs):
         super().__init__()
-        self.params = {"n_clusters": 3, "linkage": "ward"}
+        self.params = {"n_clusters": 3, "linkage": "average"}
         self.params.update(kwargs)
         self.algo = None
 
     def fit(self, data):
-        # data est une liste de (label, text), on ne garde que le texte pour le clustering
-        self.algo = ClusteringHierarchique(self.params["n_clusters"], self.params["linkage"])
-        self.algo.entrainer([t for _, t in data])
+        if self.params["linkage"] == "ward":
+            raise ValueError("Ward interdit pour le clustering textuel.")
 
-    def predict_one(self, text):
-        return self.algo.predire_un(text) if self.algo else -1
+        self.algo = ClusteringHierarchique(
+            self.params["n_clusters"],
+            self.params["linkage"]
+        )
+        self.algo.entrainer([t for _, t in data])
 
     def get_linkage_matrix(self):
         return self.algo.recuperer_donnees_lien() if self.algo else None
 
     def get_labels(self):
         return self.algo.labels_ if self.algo else []
-
 
 # ============================================================
 # Dummy Wrappers
