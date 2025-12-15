@@ -3,17 +3,14 @@ from algorithms.knn.knn_classifier import KNNClassifier
 from algorithms.knn.distance import JaccardDistance
 from algorithms.knn.voting import MajorityVote
 from algorithms.keywords.annotator import KeywordAnnotator
-from algorithms.bayes.bayes import NaiveBayesClassifier  # <--- Nouvelle classe
+from algorithms.bayes.bayes import NaiveBayesClassifier
 from algorithms.clustering.hierarchical import ClusteringHierarchique
 import random
 import os
 
 
-# ... (BaseAlgorithm, KNNWrapper, KeywordWrapper restent inchangés) ...
-# (Copiez les classes précédentes ici si vous remplacez tout le fichier)
-
 # ============================================================
-# 🧱 Base Class
+# Base Class
 # ============================================================
 class BaseAlgorithm:
     name = "BaseAlgorithm"
@@ -31,6 +28,9 @@ class BaseAlgorithm:
     def predict_batch(self, texts): return [self.predict_one(t) for t in texts]
 
 
+# ============================================================
+# KNN Wrapper
+# ============================================================
 class KNNWrapper(BaseAlgorithm):
     name = "KNN"
     mode = "supervised"
@@ -44,6 +44,7 @@ class KNNWrapper(BaseAlgorithm):
 
     def fit(self, data):
         path = self.params["synonyms_path"]
+        # Vérification basique du chemin
         dist = JaccardDistance(True, path if os.path.exists(path) else "algorithms/knn/synonyms.json")
         self.knn = KNNClassifier(k=self.params["k"], distance=dist, voter=MajorityVote())
         self.knn.fit(data)
@@ -51,6 +52,9 @@ class KNNWrapper(BaseAlgorithm):
     def predict_one(self, text): return self.knn.predict_one(text)
 
 
+# ============================================================
+# Keyword Wrapper
+# ============================================================
 class KeywordWrapper(BaseAlgorithm):
     name = "Keyword Annotation"
     mode = "rule-based"
@@ -62,7 +66,8 @@ class KeywordWrapper(BaseAlgorithm):
         self.params.update(kwargs)
         self.annotator = None
 
-    def fit(self, data=None): self.annotator = KeywordAnnotator(self.params["keywords_path"])
+    def fit(self, data=None):
+        self.annotator = KeywordAnnotator(self.params["keywords_path"])
 
     def predict_one(self, tweet):
         from algorithms.keywords.annotation import annotate_tweet
@@ -71,7 +76,7 @@ class KeywordWrapper(BaseAlgorithm):
 
 
 # ============================================================
-# 🎲 Naive Bayes Wrapper (CORRIGÉ & OO)
+# Naive Bayes Wrapper (Mise à jour complète)
 # ============================================================
 class NaiveBayesWrapper(BaseAlgorithm):
     name = "Naive Bayes"
@@ -81,36 +86,28 @@ class NaiveBayesWrapper(BaseAlgorithm):
 
     def __init__(self, **kwargs):
         super().__init__()
-        self.param_schema = {
-            "smoothing": {
-                "type": "float",
-                "default": 1.0,
-                "min": 0.1,
-                "max": 5.0,
-                "step": 0.1,
-            }
+        # Paramètres par défaut
+        self.params = {
+            "smoothing": 1.0,
+            "n_gram": 1,         # Par défaut : Unigrammes
+            "use_binary": False  # Par défaut : Fréquence
         }
-        self.params = {k: v["default"] for k, v in self.param_schema.items()}
         self.params.update(kwargs)
-
-        # On stocke l'instance de ta classe ici
         self.model = None
 
     def fit(self, data):
         """
-        Reçoit les données depuis l'interface et entraîne ton modèle.
-        data : liste de tuples (label, tweet)
+        Reçoit les données depuis l'interface et entraîne le modèle.
         """
-        # 1. On crée une instance de TA classe avec le paramètre du slider
+        # On instancie la classe NaiveBayesClassifier avec TOUS les paramètres
         self.model = NaiveBayesClassifier(
-            smoothing=self.params.get("smoothing", 1.0)
+            smoothing=self.params.get("smoothing", 1.0),
+            n_gram=self.params.get("n_gram", 1),
+            use_binary=self.params.get("use_binary", False)
         )
-
-        # 2. On lance l'entraînement (ta méthode fit gère le format automatiquement)
         self.model.fit(data)
 
     def predict_one(self, text):
-        # Sécurité si on clique sur Test avant d'entraîner
         if self.model is None:
             return 2
         return self.model.predict_one(text)
@@ -120,7 +117,10 @@ class NaiveBayesWrapper(BaseAlgorithm):
             return [2] * len(texts)
         return self.model.predict_batch(texts)
 
-# ... (ClusteringWrapper, DummyWrapper, DummyAlgo2 restent inchangés ci-dessous) ...
+
+# ============================================================
+# Clustering Wrapper
+# ============================================================
 class ClusteringWrapper(BaseAlgorithm):
     name = "Hierarchical Clustering"
     mode = "unsupervised"
@@ -133,16 +133,23 @@ class ClusteringWrapper(BaseAlgorithm):
         self.algo = None
 
     def fit(self, data):
+        # data est une liste de (label, text), on ne garde que le texte pour le clustering
         self.algo = ClusteringHierarchique(self.params["n_clusters"], self.params["linkage"])
         self.algo.entrainer([t for _, t in data])
 
-    def predict_one(self, text): return self.algo.predire_un(text) if self.algo else -1
+    def predict_one(self, text):
+        return self.algo.predire_un(text) if self.algo else -1
 
-    def get_linkage_matrix(self): return self.algo.recuperer_donnees_lien() if self.algo else None
+    def get_linkage_matrix(self):
+        return self.algo.recuperer_donnees_lien() if self.algo else None
 
-    def get_labels(self): return self.algo.labels_ if self.algo else []
+    def get_labels(self):
+        return self.algo.labels_ if self.algo else []
 
 
+# ============================================================
+# Dummy Wrappers
+# ============================================================
 class DummyWrapper(BaseAlgorithm):
     name = "Dummy"
     mode = "supervised"

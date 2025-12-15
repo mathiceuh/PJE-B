@@ -44,7 +44,22 @@ def render(manager):
 
     c1, c2 = st.columns(2)
     with c1:
+        # --- PARAMÈTRES ---
         smoothing = st.slider("Lissage (Alpha)", 0.1, 5.0, 1.0, 0.1, help="Gère les mots inconnus.")
+
+        n_gram = st.selectbox(
+            "Type de N-Grammes",
+            options=[1, 2, 3],
+            format_func=lambda x: {1: "Unigrammes (mots simples)", 2: "Bigrammes (paires)", 3: "Uni + Bigrammes"}[x],
+            help="Définit comment le texte est découpé."
+        )
+
+        use_binary = st.checkbox(
+            "Mode Binaire (Présence)",
+            value=False,
+            help="Si coché, la fréquence des mots ne compte pas (0 ou 1)."
+        )
+
     with c2:
         st.info(f"📊 **{len(train_data)}** tweets prêts pour l'entraînement.")
 
@@ -52,11 +67,18 @@ def render(manager):
     if st.button("🧠 Entraîner le modèle", type="primary"):
         with st.spinner("Calcul des probabilités..."):
             algo = manager.get_current()
-            algo.set_params(smoothing=smoothing)
+
+            # Mise à jour des paramètres dans le wrapper
+            algo.set_params(
+                smoothing=smoothing,
+                n_gram=n_gram,
+                use_binary=use_binary
+            )
+
             algo.fit(train_data)
 
             st.session_state['bayes_trained'] = True
-            st.success("Modèle entraîné avec succès !")
+            st.success(f"Modèle entraîné ! (Alpha={smoothing}, N-Gram={n_gram}, Binaire={use_binary})")
 
     # 3. Test & Évaluation
     st.divider()
@@ -83,19 +105,20 @@ def render(manager):
 
             # Debug : Mots reconnus
             if hasattr(algo, 'model') and algo.model:
+                # --- CORRECTION DU BUG ICI (_tokenize -> _get_ngrams) ---
                 tokens = algo.model._get_ngrams(user_tweet)
                 connus = [w for w in tokens if w in algo.model.vocab]
+
                 with st.expander("🔍 Détails de la prédiction"):
                     if not connus:
                         st.warning("Aucun mot connu -> Neutre par défaut.")
                     else:
-                        st.write(f"Mots reconnus : {connus}")
+                        st.write(f"Mots reconnus ({len(connus)}) : {connus}")
 
         # B. Évaluation Globale
         st.markdown("---")
         st.write("📊 **Performance sur le Test Set**")
 
-        # Utilisation d'une clé unique pour éviter le bug StreamlitDuplicateElementId
         if st.button("Lancer l'évaluation complète", key="bayes_eval_btn"):
             algo = manager.get_current()
 
@@ -122,20 +145,19 @@ def render(manager):
                                      columns=[f"Pred {c}" for c in labels_classes])
                 st.dataframe(df_cm, use_container_width=True)
 
-            # 2. Préparation du CSV pour téléchargement (Stockage dans session_state)
+            # 2. Préparation du CSV pour téléchargement
             df_export = pd.DataFrame({
                 "tweet": textes_test,
                 "label_reel": test_labels,
                 "label_predit": predictions
             })
-            # On ajoute une colonne lisible
             map_label = {0: "Negative", 2: "Neutral", 4: "Positive"}
             df_export["sentiment_predit"] = df_export["label_predit"].map(map_label)
 
             st.session_state['bayes_result_df'] = df_export
             st.success("Évaluation terminée ! Résultats prêts au téléchargement.")
 
-        # C. Zone de Téléchargement (Affichée si les résultats existent)
+        # C. Zone de Téléchargement
         if 'bayes_result_df' in st.session_state:
             st.markdown("### 📥 Télécharger les résultats")
 
